@@ -56,15 +56,17 @@ namespace BoschingMachine.Kart
             ApplySteering();
             ApplySuspension();
             ApplyFriction();
+
+            UpdateVisuals();
         }
 
-        private void Update()
+        private void UpdateVisuals()
         {
             rotation += Rpm * 6.0f * Time.deltaTime;
             rotation %= 360.0f;
 
-            visualDriver.transform.position = contactPoint + Vector3.up * (groundDistance + wheelRadius);
-            visualDriver.transform.rotation = transform.rotation * Quaternion.Euler(transform.right * rotation);
+            visualDriver.transform.position = transform.position + Vector3.down * (suspensionRange + Mathf.Min(groundDistance, 0.0f));
+            visualDriver.transform.rotation = transform.rotation * Quaternion.Euler(Vector3.right * rotation);
         }
 
         private void ApplySteering()
@@ -95,11 +97,7 @@ namespace BoschingMachine.Kart
             {
                 targetVelocity += ground.velocity;
             }
-            
-            Debug.DrawRay(contactPoint, actualVelocity, Color.green);
-            Debug.DrawRay(contactPoint, targetVelocity, Color.red);
         }
-
 
         private void CalculateSlip()
         {
@@ -154,7 +152,7 @@ namespace BoschingMachine.Kart
             Gizmos.color = Color.yellow;
             Gizmos.matrix = transform.localToWorldMatrix;
 
-            var iterations = 16;
+            const int iterations = 16;
             for (var i = 0; i < iterations; i++)
             {
                 var a1 = i / (float)iterations * Mathf.PI * 2.0f;

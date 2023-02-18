@@ -47,7 +47,9 @@ namespace BoschingMachine.Kart
             else
             {
                 var turn = Vector3.Dot(transform.up, rigidbody.angularVelocity) * Mathf.Rad2Deg;
-                steerAngle -= turn * Time.deltaTime;
+                
+                var newSteerAngle = steerAngle - turn * Time.deltaTime;
+                if (Mathf.Abs(newSteerAngle) < Mathf.Abs(steerAngle)) steerAngle = newSteerAngle;
             }
             
             foreach (var wheel in wheels)
