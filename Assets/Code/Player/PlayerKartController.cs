@@ -36,7 +36,7 @@ namespace BoschingMachine
         private void Update()
         {
             kart.ThrottlePercent = throttle.ReadValue<float>();
-            kart.SteerPercent = steer.ReadValue<float>();
+            kart.Steer = Mathf.RoundToInt(steer.ReadValue<float>());
             kart.BrakePercent = brake.ReadValue<float>();
         }
     }

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -22,7 +23,11 @@ namespace BoschingMachine.Kart
         [SerializeField] private float springFrequency = 80000.0f;
         [SerializeField] private float springDamper = 4500.0f;
 
+        [Header("Visuals")] 
+        [SerializeField] private Transform visualDriver;
+
         private new Rigidbody rigidbody;
+        private float rotation;
         
         private float groundDistance;
         private Rigidbody ground;
@@ -53,11 +58,20 @@ namespace BoschingMachine.Kart
             ApplyFriction();
         }
 
+        private void Update()
+        {
+            rotation += Rpm * 6.0f * Time.deltaTime;
+            rotation %= 360.0f;
+
+            visualDriver.transform.position = contactPoint + Vector3.up * (groundDistance + wheelRadius);
+            visualDriver.transform.rotation = transform.rotation * Quaternion.Euler(transform.right * rotation);
+        }
+
         private void ApplySteering()
         {
             if (!steer) return;
             
-            transform.rotation = Quaternion.Euler(transform.up * SteerAngle);
+            transform.localRotation = Quaternion.Euler(transform.up * SteerAngle);
         }
 
         private void CalculateTargetVelocity()
@@ -81,6 +95,9 @@ namespace BoschingMachine.Kart
             {
                 targetVelocity += ground.velocity;
             }
+            
+            Debug.DrawRay(contactPoint, actualVelocity, Color.green);
+            Debug.DrawRay(contactPoint, targetVelocity, Color.red);
         }
 
 
@@ -97,7 +114,7 @@ namespace BoschingMachine.Kart
         {
             if (!Grounded) return;
 
-            var diff = targetVelocity - rigidbody.velocity;
+            var diff = targetVelocity - rigidbody.GetPointVelocity(contactPoint);
             var friction = diff * (slipFrictionCurve.Evaluate(slip) * this.frictionScale);
 
             friction.y = 0.0f;
