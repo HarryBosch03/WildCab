@@ -25,6 +25,7 @@ namespace BoschingMachine.Kart
         
         public float ThrottlePercent { get; set; }
         public int Steer { get; set; }
+        public bool SteerHeld { get; set; }
         public float BrakePercent { get; set; }
         
         private void Awake()
@@ -39,7 +40,7 @@ namespace BoschingMachine.Kart
         {
             engineRpm = Mathf.SmoothDamp(engineRpm, ThrottlePercent * engineMaxSpeed, ref engineVelocity, engineSmoothTime);
 
-            if (Steer != 0)
+            if (SteerHeld)
             {
                 steerAngle += (Steer * maxSteerAngle - steerAngle) * steerSpeed * Time.deltaTime;
                 steerAngle = Mathf.Clamp(steerAngle, -maxSteerAngle, maxSteerAngle);
