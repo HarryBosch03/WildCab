@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace BoschingMachine.AI.Modules
 {
@@ -56,7 +55,9 @@ namespace BoschingMachine.AI.Modules
             bodies.ForEach(e => center += e.position);
             center *= 1.0f / bodies.Count;
 
+            var rootPos = ragdollRoot.position;
             transform.position = center;
+            ragdollRoot.position = rootPos;
         }
 
         public bool IsRagdollStill ()

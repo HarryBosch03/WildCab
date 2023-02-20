@@ -1,21 +1,22 @@
-using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace BoschingMachine.Kart
 {
     public class KartWheel : MonoBehaviour
     {
         [SerializeField] private float wheelRadius = 0.3f;
+        [SerializeField] private float wheelMOI = 0.3f;
 
         [Header("Function")]
-        [SerializeField] private bool steer;
         [SerializeField] private bool drive;
+        [SerializeField] private bool steer;
         [SerializeField] private bool brake;
+        [SerializeField] private float brakeForce;
 
         [Header("Friction")] 
         [SerializeField] private float frictionScale;
         [SerializeField] private AnimationCurve slipFrictionCurve;
+        [SerializeField] private float slipScale;
         [SerializeField] private float slip;
         
         [Header("Suspension")]
@@ -36,7 +37,11 @@ namespace BoschingMachine.Kart
         private Vector3 targetVelocity;
 
         public bool Grounded => groundDistance < suspensionRange;
-        
+
+        public bool Drive => drive;
+        public bool Steer => steer;
+        public bool Brake => brake;
+
         public float Rpm { get; set; }
         public float SteerAngle { get; set; }
         public float BrakePercent { get; set; }
@@ -48,6 +53,8 @@ namespace BoschingMachine.Kart
 
         private void FixedUpdate()
         {
+            if (brake) Rpm = Mathf.MoveTowards(Rpm, 0.0f, BrakePercent * brakeForce * Time.deltaTime);
+
             CheckForGround();
 
             CalculateTargetVelocity();
@@ -62,10 +69,10 @@ namespace BoschingMachine.Kart
 
         private void UpdateVisuals()
         {
-            rotation += Rpm * 6.0f * Time.deltaTime;
+            rotation += (Rpm) * 6.0f * Time.deltaTime;
             rotation %= 360.0f;
 
-            visualDriver.transform.position = transform.position + Vector3.down * (suspensionRange + Mathf.Min(groundDistance, 0.0f));
+            visualDriver.transform.position = transform.position + -transform.up * (suspensionRange + Mathf.Min(groundDistance, 0.0f));
             visualDriver.transform.rotation = transform.rotation * Quaternion.Euler(Vector3.right * rotation);
         }
 
@@ -78,21 +85,9 @@ namespace BoschingMachine.Kart
 
         private void CalculateTargetVelocity()
         {
-            targetVelocity = Vector3.zero;
+            targetVelocity = transform.forward * Rpm * Mathf.PI * wheelRadius / 30.0f;
+            targetVelocity *= 1.0f - BrakePercent;
 
-            var actualVelocity = rigidbody.GetPointVelocity(contactPoint);
-            targetVelocity += transform.forward * Vector3.Dot(transform.forward, actualVelocity);
-            
-            if (drive)
-            {
-                targetVelocity -= transform.forward * Vector3.Dot(transform.forward, targetVelocity);
-                var wheelSpeed = Rpm * Mathf.PI * wheelRadius / 30.0f;
-                targetVelocity += transform.forward * wheelSpeed;
-            }
-            if (brake)
-            {
-                targetVelocity -= transform.forward * (Vector3.Dot(transform.forward, targetVelocity) * BrakePercent);
-            }
             if (ground)
             {
                 targetVelocity += ground.velocity;
@@ -104,8 +99,9 @@ namespace BoschingMachine.Kart
             if (!Grounded) return;
             
             var actualVelocity = rigidbody.GetPointVelocity(contactPoint);
-            var dot = Vector3.Dot(targetVelocity.normalized, actualVelocity.normalized);
-            slip = (0.5f - dot * 0.5f);
+            var diff = (targetVelocity - actualVelocity).magnitude;
+            diff /= Mathf.Max(targetVelocity.magnitude, actualVelocity.magnitude);
+            slip = float.IsNaN(diff) ? 0.0f : diff;
         }
 
         private void ApplyFriction()
@@ -113,9 +109,11 @@ namespace BoschingMachine.Kart
             if (!Grounded) return;
 
             var diff = targetVelocity - rigidbody.GetPointVelocity(contactPoint);
-            var friction = diff * (slipFrictionCurve.Evaluate(slip) * this.frictionScale);
+            var friction = diff * (slipFrictionCurve.Evaluate(slip) * frictionScale);
+            friction -= transform.up * Vector3.Dot(friction, transform.up);
 
-            friction.y = 0.0f;
+            Rpm -= Vector3.Dot(transform.forward, friction) * wheelRadius / wheelMOI * Time.deltaTime;
+
             rigidbody.AddForceAtPosition(friction, contactPoint);
         }
 
@@ -126,15 +124,15 @@ namespace BoschingMachine.Kart
             var springForce = -groundDistance * springFrequency;
 
             var velAtPoint = rigidbody.GetPointVelocity(transform.position);
-            var damper = -Vector3.Dot(velAtPoint, Vector3.up) * springDamper;
+            var damper = -Vector3.Dot(velAtPoint, transform.up) * springDamper;
 
             springForce += damper;
-            rigidbody.AddForceAtPosition(Vector3.up * springForce, contactPoint);
+            rigidbody.AddForceAtPosition(transform.up * springForce, contactPoint);
         }
 
         private void CheckForGround()
         {
-            var ray = new Ray(transform.position + Vector3.up * wheelRadius, Vector3.down);
+            var ray = new Ray(transform.position + transform.up * wheelRadius, -transform.up);
             if (Physics.SphereCast(ray, wheelRadius, out var hit))
             {
                 groundDistance = hit.distance - wheelRadius - suspensionRange;

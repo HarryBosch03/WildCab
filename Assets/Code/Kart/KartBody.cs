@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
-using BoschingMachine.Gameplay;
 
 namespace BoschingMachine.Kart
 {
     public class KartBody : MonoBehaviour
     {
         [SerializeField] private float engineMaxSpeed;
-        [SerializeField] private float engineSmoothTime;
+        [SerializeField] private float engineTorque;
+        [SerializeField] private float engineMOI;
 
         [Space]
         [FormerlySerializedAs("steerAngle")]
@@ -18,15 +18,16 @@ namespace BoschingMachine.Kart
         [Space]
         [SerializeField] private Transform centerOfMass;
 
+        [Space]
+        [SerializeField] private float counterFlipScale;
+
         public Rigidbody Rigidbody { get; private set; }
         private List<KartWheel> wheels;
         private float engineRpm;
-        private float engineVelocity;
-        private float steerAngle;
-        private List<Passenger> passengers = new();
-
+        
         public float ThrottlePercent { get; set; }
         public int Steer { get; set; }
+        public float SteerAngle { get; set; }
         public bool SteerHeld { get; set; }
         public float BrakePercent { get; set; }
 
@@ -38,42 +39,47 @@ namespace BoschingMachine.Kart
             wheels = new List<KartWheel>(GetComponentsInChildren<KartWheel>());
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
-            engineRpm = Mathf.SmoothDamp(engineRpm, ThrottlePercent * engineMaxSpeed, ref engineVelocity, engineSmoothTime);
+            Vector3 counterFlip = Vector3.Cross(transform.up, Vector3.up) * counterFlipScale;
+            Rigidbody.AddTorque(counterFlip, ForceMode.Acceleration);
+
+            engineRpm += (ThrottlePercent * engineMaxSpeed - engineRpm) * engineTorque * Time.deltaTime;
 
             if (SteerHeld)
             {
-                steerAngle += (Steer * maxSteerAngle - steerAngle) * steerSpeed * Time.deltaTime;
-                steerAngle = Mathf.Clamp(steerAngle, -maxSteerAngle, maxSteerAngle);
+                SteerAngle += (Steer * maxSteerAngle - SteerAngle) * steerSpeed * Time.deltaTime;
+                SteerAngle = Mathf.Clamp(SteerAngle, -maxSteerAngle, maxSteerAngle);
             }
             else
             {
+                SteerAngle = Mathf.Clamp(SteerAngle, -maxSteerAngle, maxSteerAngle);
                 var turn = Vector3.Dot(transform.up, Rigidbody.angularVelocity) * Mathf.Rad2Deg;
 
-                var newSteerAngle = steerAngle - turn * Time.deltaTime;
-                if (Mathf.Abs(newSteerAngle) < Mathf.Abs(steerAngle)) steerAngle = newSteerAngle;
+                var newSteerAngle = SteerAngle - turn * Time.deltaTime;
+                if (Mathf.Abs(newSteerAngle) < Mathf.Abs(SteerAngle)) SteerAngle = newSteerAngle;
+            }
+
+            if (BrakePercent < 0.1f)
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    foreach (var wheel in wheels)
+                    {
+                        if (!wheel.Drive) continue;
+
+                        var avg = (wheel.Rpm + engineRpm * engineMOI) / (1.0f + engineMOI);
+                        wheel.Rpm = avg;
+                        engineRpm = avg;
+                    }
+                }
             }
 
             foreach (var wheel in wheels)
             {
-                wheel.Rpm = engineRpm;
-                wheel.SteerAngle = steerAngle;
+                wheel.SteerAngle = SteerAngle;
                 wheel.BrakePercent = BrakePercent;
             }
-        }
-
-        public bool TryAddPassanger (Passenger passanger)
-        {
-            if (IsCarFull()) return false;
-
-            passengers.Add(passanger);
-            return true;
-        }
-
-        public bool IsCarFull ()
-        {
-            return passengers.Count >= 3;
         }
     }
 }

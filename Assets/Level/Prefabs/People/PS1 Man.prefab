@@ -1048,6 +1048,8 @@ MonoBehaviour:
     maxWanderDistance: 25
     maxWaitTime: 5
   characterAnimator: {fileID: 107539353733191222}
+  impactPrefab: {fileID: 1378310690903231927, guid: b6500a49b23b0c34cb9d51b7912f7fc3, type: 3}
+  impactForce: {x: 0, y: 0, z: 0}
 --- !u!1 &2880215083689345926
 GameObject:
   m_ObjectHideFlags: 0

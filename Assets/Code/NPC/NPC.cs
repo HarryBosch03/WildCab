@@ -1,8 +1,5 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 using BoschingMachine.AI.Modules;
 
 namespace BoschingMachine.AI
@@ -21,11 +18,15 @@ namespace BoschingMachine.AI
         [Space]
         [SerializeField] private Animator characterAnimator;
 
-        public Rigidbody Rigidbody { get; private set; }
-        public Animator CharacterAnimator => characterAnimator;
-        private Vector3 moveDirection;
+        [Space]
+        [SerializeField] GameObject impactPrefab;
+        [SerializeField] Vector3 impactForce;
+
         private float ragdollTimer;
 
+        public Rigidbody Rigidbody { get; private set; }
+        public Animator CharacterAnimator => characterAnimator;
+        public Vector3 MoveDirection { get; set; }
         public Vector3 FaceDirection { get; set; }
 
         private void Awake()
@@ -40,7 +41,7 @@ namespace BoschingMachine.AI
 
         private void Update()
         {
-            moveDirection = Vector3.zero;
+            MoveDirection = Vector3.zero;
 
             if (ragdollinator.Ragdolled)
             {
@@ -69,7 +70,7 @@ namespace BoschingMachine.AI
 
         private void FixedUpdate()
         {
-            movement.FixedUpdate(Rigidbody, moveDirection);
+            movement.FixedUpdate(Rigidbody, MoveDirection);
         }
 
         private void LateUpdate()
@@ -86,7 +87,11 @@ namespace BoschingMachine.AI
 
             if (!(momentumLength > maxRagdollMomentum)) return;
 
+            Rigidbody.velocity += collision.transform.TransformDirection(impactForce);
+
             ragdollinator.Ragdoll(transform, Rigidbody, SetCollision);
+
+            Instantiate(impactPrefab, transform.position + Vector3.up * 0.9f, Quaternion.identity);
         }
 
         public void SetCollision(bool state)
@@ -106,8 +111,8 @@ namespace BoschingMachine.AI
         public void MoveToPoint(Vector3 point)
         {
             var dir = point - transform.position;
-            if (dir.sqrMagnitude < 1.0f) moveDirection = Vector3.zero;
-            else moveDirection = dir.normalized;
+            if (dir.sqrMagnitude < 1.0f) MoveDirection = Vector3.zero;
+            else MoveDirection = dir.normalized;
         }
 
         public void FacePoint (Vector3 point)
