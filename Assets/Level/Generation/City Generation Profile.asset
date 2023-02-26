@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 35ad38ea89c2fea44a54867167d678cd, type: 3}
   m_Name: City Generation Profile
   m_EditorClassIdentifier: 
-  cells: {x: 6, y: 6}
+  cells: {x: 5, y: 5}
   blockSize: 11
   roadWidth: 2
   splitWeights:
