@@ -1036,7 +1036,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   movement:
     moveSpeed: 3
-    acceleration: 80
+    acceleration: 5
   ragdollinator:
     ragdoll: {fileID: 1102872195979578903}
     ragdollRoot: {fileID: 6967392327094565959}

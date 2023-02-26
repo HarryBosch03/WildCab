@@ -13,27 +13,27 @@ namespace BoschingMachine.Kart
         [SerializeField] private bool brake;
         [SerializeField] private float brakeForce;
 
-        [Header("Friction")] 
+        [Header("Friction")]
         [SerializeField] private float frictionScale;
         [SerializeField] private AnimationCurve slipFrictionCurve;
-        [SerializeField] private float slipScale;
-        [SerializeField] private float slip;
-        
+        [SerializeField][Range(0.0f, 1.0f)] private float slip;
+        [SerializeField] private float slipInvScale;
+
         [Header("Suspension")]
         [SerializeField] private float suspensionRange = 0.3f;
         [SerializeField] private float springFrequency = 80000.0f;
         [SerializeField] private float springDamper = 4500.0f;
 
-        [Header("Visuals")] 
+        [Header("Visuals")]
         [SerializeField] private Transform visualDriver;
 
         private new Rigidbody rigidbody;
         private float rotation;
-        
+
         private float groundDistance;
         private Rigidbody ground;
         private Vector3 contactPoint;
-        
+
         private Vector3 targetVelocity;
 
         public bool Grounded => groundDistance < suspensionRange;
@@ -79,7 +79,7 @@ namespace BoschingMachine.Kart
         private void ApplySteering()
         {
             if (!steer) return;
-            
+
             transform.localRotation = Quaternion.Euler(transform.up * SteerAngle);
         }
 
@@ -97,11 +97,10 @@ namespace BoschingMachine.Kart
         private void CalculateSlip()
         {
             if (!Grounded) return;
-            
+
             var actualVelocity = rigidbody.GetPointVelocity(contactPoint);
             var diff = (targetVelocity - actualVelocity).magnitude;
-            diff /= Mathf.Max(targetVelocity.magnitude, actualVelocity.magnitude);
-            slip = float.IsNaN(diff) ? 0.0f : diff;
+            slip = diff / slipInvScale;
         }
 
         private void ApplyFriction()
@@ -120,7 +119,7 @@ namespace BoschingMachine.Kart
         private void ApplySuspension()
         {
             if (!Grounded) return;
-            
+
             var springForce = -groundDistance * springFrequency;
 
             var velAtPoint = rigidbody.GetPointVelocity(transform.position);
@@ -161,7 +160,7 @@ namespace BoschingMachine.Kart
 
                 Gizmos.DrawLine(p1, p2);
             }
-            
+
             Gizmos.color = Color.white;
         }
     }
