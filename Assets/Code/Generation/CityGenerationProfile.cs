@@ -12,31 +12,39 @@ namespace BoschingMachine.Generation
         [Space]
         [SerializeField] int halfBlocks;
         [SerializeField] int thirdBlocks;
+
+        [Space]
+        [SerializeField] bool regenerate;
+
+        CityGenerationData last;
         
         public CityGenerationData Generate ()
         {
+            if (!regenerate && last != null) return last;
+
             var data = new CityGenerationData(GetGridSize());
 
             MarkGrid(data);
             MarkBlocks(data, halfBlocks, 2);
             MarkBlocks(data, halfBlocks, 3);
 
+            last = data;
             return data;
         }
 
-        private void MarkBlocks(CityGenerationData data, int halfBlocks, int d)
+        private void MarkBlocks(CityGenerationData data, int count, int d)
         {
-            for (int i = 0; i < halfBlocks; i++)
+            for (int i = 0; i < count; i++)
             {
                 Vector2Int pos = new Vector2Int
                     (
-                    Random.Range(0, data.Size.x), 
-                    Random.Range(0, data.Size.y)
+                    Random.Range(0, data.Size.x - roadWidth), 
+                    Random.Range(0, data.Size.y - roadWidth)
                     );
 
                 pos = GetClosestBlockCorner(pos);
 
-                MarkBlock(pos, d);
+                MarkBlock(data, pos, d);
             }
         }
 
@@ -90,9 +98,11 @@ namespace BoschingMachine.Generation
         
         private Vector2Int GetClosestBlockCorner (Vector2Int p)
         {
+            int s = (blockSize + roadWidth);
+
             int Edge (System.Func<Vector2Int, int> c)
             {
-                return c(p) / (blockSize + roadWidth) + roadWidth;
+                return (c(p) / s) * s + roadWidth;
             }
 
             return new Vector2Int(Edge(v => v.x), Edge(v => v.y));
