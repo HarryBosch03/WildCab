@@ -13,5 +13,8 @@ MonoBehaviour:
   m_Name: City Generation Profile
   m_EditorClassIdentifier: 
   cells: {x: 5, y: 5}
-  cellSize: 11
+  blockSize: 11
   roadWidth: 2
+  halfBlocks: 1
+  thirdBlocks: 0
+  regenerate: 0
