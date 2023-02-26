@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace BoschingMachine.Generation
 {
-    [System.Serializable]
     public class CityGenerationData
     {
         public Vector2Int Size { get; private set; }

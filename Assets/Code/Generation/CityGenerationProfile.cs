@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace BoschingMachine.Generation
 {
@@ -10,49 +12,95 @@ namespace BoschingMachine.Generation
         [SerializeField] int roadWidth;
 
         [Space]
-        [SerializeField] int halfBlocks;
-        [SerializeField] int thirdBlocks;
+        [SerializeField] List<float> splitWeights;
 
         [Space]
         [SerializeField] bool regenerate;
 
         CityGenerationData last;
-        
-        public CityGenerationData Generate ()
+
+        public CityGenerationData Generate()
         {
             if (!regenerate && last != null) return last;
 
             var data = new CityGenerationData(GetGridSize());
 
             MarkGrid(data);
-            MarkBlocks(data, halfBlocks, 2);
-            MarkBlocks(data, halfBlocks, 3);
+            MarkBlocks(data, true);
+            MarkBlocks(data, false);
 
+            OuterEdges(data);
+
+            regenerate = false;
             last = data;
             return data;
         }
 
-        private void MarkBlocks(CityGenerationData data, int count, int d)
+        private void OuterEdges(CityGenerationData data)
         {
-            for (int i = 0; i < count; i++)
+            bool[,] old = new bool[data.Size.x - roadWidth - blockSize, data.Size.y - roadWidth - blockSize];
+            for (int x = 0; x < old.GetLength(0); x++)
             {
-                Vector2Int pos = new Vector2Int
-                    (
-                    Random.Range(0, data.Size.x - roadWidth), 
-                    Random.Range(0, data.Size.y - roadWidth)
-                    );
-
-                pos = GetClosestBlockCorner(pos);
-
-                MarkBlock(data, pos, d);
+                for (int y = 0; y < old.GetLength(1); y++)
+                {
+                    old[x, y] = data.Roads[x, y];
+                }
             }
+
+            for (int x = 0; x < data.Size.x; x++)
+            {
+                for (int y = 0; y < data.Size.y; y++)
+                {
+                    data.Roads[x, y] = false;
+                }
+            }
+
+            int o = (blockSize + roadWidth) / 2;
+            for (int x = 0; x < old.GetLength(0); x++)
+            {
+                for (int y = 0; y < old.GetLength(1); y++)
+                {
+                    data.Roads[x + o, y + o] = old[x, y];
+                }
+            }            
         }
 
-        private void MarkBlock (CityGenerationData data, Vector2Int origin, int d)
+        private void MarkBlocks(CityGenerationData data, bool swap)
         {
-            System.Func<Vector2Int, Vector2Int> swap = Random.value > 0.5f ?
-                v => v :
-                v => new Vector2Int(v.y, v.x);
+            float totalWeight = 0.0f;
+            splitWeights.ForEach(v => totalWeight += v);
+
+            int GetDivision ()
+            {
+                float w = Random.value * totalWeight;
+                int i = 1;
+                foreach (float split in splitWeights)
+                {
+                    if (w < split) return i;
+                    
+                    w -= split;
+                    i++;
+                }
+
+                return splitWeights.Count;
+            }
+
+            int xMax = GetGridEdge(v => v.x);
+            int yMax = GetGridEdge(v => v.y);
+            for (int x = roadWidth; x < xMax; x += (blockSize + roadWidth))
+                for (int y = roadWidth; y < yMax; y += (blockSize + roadWidth))
+                {
+                    MarkBlock(data, new Vector2Int(x, y), GetDivision(), swap);
+                }
+        }
+
+        private void MarkBlock(CityGenerationData data, Vector2Int origin, int d, bool doSwap)
+        {
+            if (d < 2) return;
+
+            System.Func<Vector2Int, Vector2Int> swap = doSwap ?
+                v => new Vector2Int(v.y, v.x) :
+                v => v;
 
             for (int i = 0; i < d - 1; i++)
             {
@@ -81,31 +129,28 @@ namespace BoschingMachine.Generation
             }
         }
 
-        public bool IsRoadEdge (int x)
+        public bool IsRoadEdge(int x)
         {
-            return (x % (blockSize + roadWidth)) < roadWidth; 
+            return (x % (blockSize + roadWidth)) < roadWidth;
+        }
+
+        private int GetGridEdge(System.Func<Vector2Int, int> c)
+        {
+            return c(cells) * blockSize + (1 + c(cells)) * roadWidth;
         }
 
         private Vector2Int GetGridSize()
         {
-            int Edge(System.Func<Vector2Int, int> c)
-            {
-                return c(cells) * blockSize + (1 + c(cells)) * roadWidth;
-            }
-
-            return new Vector2Int(Edge(v => v.x), Edge(v => v.y));
+            return new Vector2Int(GetGridEdge(v => v.x), GetGridEdge(v => v.y));
         }
-        
-        private Vector2Int GetClosestBlockCorner (Vector2Int p)
+
+        private Vector2Int Swap (Vector2Int v) => new Vector2Int(v.y, v.x);
+
+        #if UNITY_EDITOR
+        private void OnValidate ()
         {
-            int s = (blockSize + roadWidth);
-
-            int Edge (System.Func<Vector2Int, int> c)
-            {
-                return (c(p) / s) * s + roadWidth;
-            }
-
-            return new Vector2Int(Edge(v => v.x), Edge(v => v.y));
+            regenerate = true;
         }
+        #endif
     }
 }
