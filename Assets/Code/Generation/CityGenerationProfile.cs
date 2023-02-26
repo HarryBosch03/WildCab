@@ -1,69 +1,101 @@
-using System.Collections.Generic;
 using UnityEngine;
 
-namespace BoschingMachine
+namespace BoschingMachine.Generation
 {
     [CreateAssetMenu(menuName = "Scriptable Objects/Generation/City Generation Profile")]
-    public sealed class CityGenerationProfile : ScriptableObject
+    public class CityGenerationProfile : ScriptableObject
     {
-        [SerializeField] Vector2Int size;
-        [SerializeField] int roadMinDistance;
+        [SerializeField] Vector2Int cells;
+        [SerializeField] int blockSize;
+        [SerializeField] int roadWidth;
 
+        [Space]
+        [SerializeField] int halfBlocks;
+        [SerializeField] int thirdBlocks;
+        
         public CityGenerationData Generate ()
         {
-            var data = new CityGenerationData(size.x, size.y);
+            var data = new CityGenerationData(GetGridSize());
 
-            CollapseRandomCell(data.Roads);
+            MarkGrid(data);
+            MarkBlocks(data, halfBlocks, 2);
+            MarkBlocks(data, halfBlocks, 3);
 
             return data;
         }
 
-        public bool CollapseRandomCell(bool[,] grid)
+        private void MarkBlocks(CityGenerationData data, int halfBlocks, int d)
         {
-            var validCells = GetAllValidCells(grid);
+            for (int i = 0; i < halfBlocks; i++)
+            {
+                Vector2Int pos = new Vector2Int
+                    (
+                    Random.Range(0, data.Size.x), 
+                    Random.Range(0, data.Size.y)
+                    );
 
-            if (validCells.Count == 0) return false;
+                pos = GetClosestBlockCorner(pos);
 
-            var c = validCells[Random.Range(0, validCells.Count)];
-            grid[c.x, c.y] = true;
-
-            return true;
+                MarkBlock(pos, d);
+            }
         }
 
-        public bool CanCollapseCell(bool[,] grid, int x, int y)
+        private void MarkBlock (CityGenerationData data, Vector2Int origin, int d)
         {
-            for (int i = -roadMinDistance; i <= roadMinDistance; i++)
-            {
-                for (int j = -roadMinDistance; j <= roadMinDistance; j++)
-                {
-                    if (x + i < 0) continue;
-                    if (x + i >= grid.GetLength(0)) continue;
-                    if (y + j < 0) continue;
-                    if (y + j >= grid.GetLength(1)) continue;
+            System.Func<Vector2Int, Vector2Int> swap = Random.value > 0.5f ?
+                v => v :
+                v => new Vector2Int(v.y, v.x);
 
-                    if (grid[x + i, y + j]) return false;
+            for (int i = 0; i < d - 1; i++)
+            {
+                float p = (i + 1.0f) / d;
+                int c = (int)(p * blockSize);
+                for (int r = 0; r < blockSize; r++)
+                {
+                    Vector2Int offset = new Vector2Int(c, r);
+                    Vector2Int pos = origin + swap(offset);
+                    data.Roads[pos.x, pos.y] = true;
                 }
             }
-
-            return true;
         }
 
-        public List<Vector2Int> GetAllValidCells(bool[,] grid)
+        private void MarkGrid(CityGenerationData data)
         {
-            List<Vector2Int> cells = new List<Vector2Int>();
-
-            for (int x = 0; x < grid.GetLength(0); x++)
+            for (int x = 0; x < data.Size.x; x++)
             {
-                for (int y = 0; y < grid.GetLength(1); y++)
+                for (int y = 0; y < data.Size.y; y++)
                 {
-                    if (CanCollapseCell(grid, x, y))
+                    if (IsRoadEdge(x) || IsRoadEdge(y))
                     {
-                        cells.Add(new Vector2Int(x, y));
+                        data.Roads[x, y] = true;
                     }
                 }
             }
+        }
 
-            return cells;
+        public bool IsRoadEdge (int x)
+        {
+            return (x % (blockSize + roadWidth)) < roadWidth; 
+        }
+
+        private Vector2Int GetGridSize()
+        {
+            int Edge(System.Func<Vector2Int, int> c)
+            {
+                return c(cells) * blockSize + (1 + c(cells)) * roadWidth;
+            }
+
+            return new Vector2Int(Edge(v => v.x), Edge(v => v.y));
+        }
+        
+        private Vector2Int GetClosestBlockCorner (Vector2Int p)
+        {
+            int Edge (System.Func<Vector2Int, int> c)
+            {
+                return c(p) / (blockSize + roadWidth) + roadWidth;
+            }
+
+            return new Vector2Int(Edge(v => v.x), Edge(v => v.y));
         }
     }
 }
